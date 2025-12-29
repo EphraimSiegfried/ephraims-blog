@@ -11,13 +11,16 @@
   "dependencies": {
     "next": "16.1.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "rehype-pretty-code": "^0.14.1",
+    "shiki": "^3.20.0"
   },
   "devDependencies": {
     "@content-collections/core": "^0.13.0",
     "@content-collections/mdx": "^0.2.2",
     "@content-collections/next": "^0.2.10",
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
