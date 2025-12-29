@@ -4,7 +4,6 @@ import Image from "next/image";
 
 function Profile() {
   const data = allProfiles[0];
-  console.debug(allProfiles);
   if (!data) {
     console.warn("No data found for profile");
     return null;
