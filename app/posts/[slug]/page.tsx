@@ -1,8 +1,6 @@
 import { allPosts } from "content-collections";
 import { notFound } from "next/navigation";
 import { MDXContent } from "@content-collections/mdx/react";
-import { ReactNode } from "react";
-import { Hash } from "lucide-react";
 import Link from "next/link";
 
 type Props = {
