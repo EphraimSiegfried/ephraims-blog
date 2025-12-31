@@ -1,0 +1,89 @@
+---
+title: "Git as a fancy DAG"
+summary: "There is much more you can do with Git than version control."
+date: 2025-12-30
+author: Ephraim Siegfried
+---
+
+The official Git documentation advertises Git as a distributed version control system. But it is much more than that! Git is so well designed that it can be used in many other ways. More abstractly, Git can be thought of as a tool for manipulating a directed acyclic graph (DAG) of content-addressable objects and replicating these objects across repositories. This more abstract view of Git allows us to use it as a backend for applications which incorporate similar DAG-based data structures.
+
+
+In this post I will give a short introduction to Git internals and show how one could build a distributed chat application using Git in the backend. 
+
+
+
+## Git Objects
+Like in any DAG, Git has nodes and pointers. Git calls these nodes "objects" and some of these objects can point to other objects. There are four types of objects in Git:
+
+- **Blob (Binary Large Object)**: This is the simplest object. It cannot point to other objects and is solely stores a sequence of bytes. It is the equivalent of a file in the file system. 
+
+- **Tree**: A tree is a collection of pointers to trees, commits or blobs. It associates a name and metadata with each pointer. This metadata can for example be the mode of a blob, e.g. whether the blob is a symlink or executable. The equivalent of a tree in the file system is a directory.
+![Git Trees and Blobs](/figures/git-tree-blob.webp)
+
+- **Commit**: The commit is the magic object of Git. It is a record which points to exactly one tree. It also contains a message, the name of the author, their mail, the time the commit was constructed. A commit can point to other commits which are called parents. In "version-control"-Git, it is used as a snapshot of a worktree at a given time (but it can represent much more as we will see!).
+![Git Commits](/figures/git-commit.webp)
+
+- **Reference**: A reference is a pointer to a Git object. **Direct References** can point to blobs, trees and commits. In "version-control"-Git we usually only have direct references to commits and these references  are called branches (mindblowing!). **Symbolic References** point to direct references. In "version-control"-Git there is usually only one symbolic reference, which is called HEAD. HEAD points to the branch we currently work on. It can also point directly to commits, in which case we call it detached. 
+![Git References](/figures/git-references.webp)
+
+Blobs, trees and commits are compressed and stored in the `.git/objects` directory. They are immutable, i.e. they can be added or deleted from the object database but never updated. All objects in this directory are content addressed, i.e. they are identified by the SHA1 hash of their contents.
+
+References are identified by a given name and are stored in the `.git/refs` directory. Direct references are files containing SHA1 hashes and symbolic references are files containing the name of a direct reference.
+
+
+## Replication
+
+Git can replicate objects across multiple repositories. One of the replication protocols is the _fetch_ operation. With this operation, a repository can request and download objects from another repository, which are called remotes.
+
+To specify which objects should be downloaded, a _refspec_ can be used. The _refspec_ specifies which remote references should be downloaded to the local repository and how the received references should be named. This operation also downloads all objects which are reachable from the references specified. The _refspec_ is a string which is structured as `<remote_references>:<local_references>`. For example, the command 
+
+```bash
+git fetch refs/foo:/refs/bar
+```
+
+copies the remote reference `refs/foo` and names it `refs/bar` locally and downloads all objects reachable from `refs/foo`. It is also possible to specify multiple references by using globs,  e.g. the reference `refs/heads/*` specifies all references which are in the namespace `refs/heads`.
+
+
+## Toy Example: Chat Application using Git
+
+With this knowledge we can design a peer-to-peer, offline-first chat application with Git as a backend. In this toy example every user knows and trusts each other and there are no private messages. The storage of message is decentralized; every participant tracks the state of all messages in a local replica. It is also offline-first; users don't have to broadcast their messages with others all the time and can do this whenever they want. 
+
+We can implement this using Git. Here is how it could be done: The chat application maintains a Git repository which tracks the state of the messages of all participants. A message is a single commit object with the following metadata fields:
+
+- Message: Contains the chat message content
+- Author: Is set to the author of the message
+- Tree: Points to an empty tree, i.e. a tree with no entries
+
+All other fields can be set to empty strings. We can create such a commit using Git plumbing commands:
+```bash
+# Since Git is content addressed the following will always produce the same hash
+# empty_tree_hash=$(git mktree < /dev/null)
+# Therefore, this works as well:
+empty_tree_hash=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+GIT_AUTHOR_NAME=$user git commit-tree $empty_tree_hash -m "$message"
+```
+
+For every participant, we additionally maintain a direct reference which points to the last message this user has written. Let's say we have two users: Alice and Bob. Alice will have a reference `refs/users/alice` which points to the last commit Alice has created. She will also have a reference `refs/users/bob`, which points to the last commit she has received from Bob.
+
+Because messages are not synchronized all the time, we shouldn't order them based on time but based on a causal ordering. When a user writes a message to the chatroom and another user replies to it, the latter message is casually related to the first message. This "happened-after"-relation can be captured using parent pointers! For this we only have to modify the way we create commits. Instead of leaving the parents metadata field empty, we fill it with all commit IDs pointed by `refs/users/*`.
+
+![Git Chat](/figures/git-chat.webp)
+
+To synchronize messages across replicas, we can use the fetch operation. A user can fetch messages from another user with the refspec `refs/users/*:refs/users/*`. This operation will download all objects from the remote which the local replica does not have and will set the pointers in `refs/users` to the latest commits both participants know of.
+
+Finally, to display messages we can use `git log refs/users/* --topo-order`. This displays all commits reachable from the references in `refs/users` and will print them in topological order.
+
+We now have a simple peer-to-peer, offline-first chat application! A possible optimization would be to store messages as blobs. By leveraging Git’s content-addressed storage, we can ensure that duplicate messages (like long-form spam) only take up space once, no matter how many times they appear in the chat history. 
+
+As we saw, there is much more one can do with Git than version control.
+
+The concept and design for building a chat application on Git are credited to [Erick Lavoie](https://scholar.google.com/citations?user=4nw0skIAAAAJ&hl=en).
+
+## Further Topics
+
+Here are some articles which I have taken inspiration of. They contain further topics on Git internals:
+- **[Git for Computer Scientists](https://eagain.net/articles/git-for-computer-scientists/)**: Contains great explanation of rebase and merge. 
+- **[Git Internals](https://github.com/Ajorian/Git-Internals)**: This article is from Ali Ajorian, the lecturer who first taught me all of this. It shows how to create a typical Git repository using only low-level Git commands.
+- **[Git Pro](https://git-scm.com/book/en/v2)**: The bible of Git. 
+- **[Designing Peer-to-Peer Systems as Closed Knowledge Commons](https://dl.acm.org/doi/epdf/10.1145/3631310.3633491)**: This is another application of Git. It's from my lecturer Erick Lavoie, from which I have first heard of unorthodox Git usage.
+
