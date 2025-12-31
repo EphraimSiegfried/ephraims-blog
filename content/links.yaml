@@ -1,19 +1,28 @@
 links:
   faridzakaria:
     url: https://fzakaria.com/
-    gif: nixos.png
+    gif: nixos.gif
   cameronsworld:
     url: https://www.cameronsworld.net/
     gif: asta_small.gif
+  pointerpointer:
+    url: https://pointerpointer.com/
+    gif: neovim.png
+  shodan:
+    url: https://2000.shodan.io/#/
+    gif: nextjs.png
   maiacrimew:
     url: https://maia.crimew.gay/
+    gif: chtourist.gif
+  eighyeighy-thirty:
+    url: https://eightyeightthirty.one/
+    gif: no-ai.gif
+  repair:
+    url: https://repair.eu/
+    gif: powered.gif
+  descriptions:
+    url: https://plato.stanford.edu/entries/descriptions/
+    gif: affection.gif
+  spyware:
+    url: https://spyware.neocities.org/articles/
     gif: norton.gif
-  # shodan:
-  #   url: https://2000.shodan.io/#/
-  #   gif: button_tupachq1.gif
-  # pointerpointer:
-  #   url: https://pointerpointer.com/
-  #   gif: chtourist.gif
-  # stanford-descriptions:
-  #   url: https://plato.stanford.edu/entries/descriptions/
-  #   gif: shakira.gif
