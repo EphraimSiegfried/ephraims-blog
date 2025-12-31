@@ -15,7 +15,7 @@ In this post I will give a short introduction to Git internals and show how one 
 ## Git Objects
 Like in any DAG, Git has nodes and pointers. Git calls these nodes "objects" and some of these objects can point to other objects. There are four types of objects in Git:
 
-- **Blob (Binary Large Object)**: This is the simplest object. It cannot point to other objects and is solely stores a sequence of bytes. It is the equivalent of a file in the file system. 
+- **Blob (Binary Large Object)**: This is the simplest object. It cannot point to other objects and it solely stores a sequence of bytes. It is the equivalent of a file in the file system. 
 
 - **Tree**: A tree is a collection of pointers to trees, commits or blobs. It associates a name and metadata with each pointer. This metadata can for example be the mode of a blob, e.g. whether the blob is a symlink or executable. The equivalent of a tree in the file system is a directory.
 ![Git Trees and Blobs](/figures/git-tree-blob.webp)
