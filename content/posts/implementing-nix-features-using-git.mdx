@@ -1,0 +1,16 @@
+---
+title: "Nix Binary Cache backed by Git"
+summary: "I show how I built a Nix binary cache called Gachix using Git internal tools. Doing that gives efficient storage and simple replication for free!"
+date: 2026-01-27
+author: Ephraim Siegfried
+---
+
+Nix and Git have some interesting commonalities. Most notably, both tools operate on a directed acyclic graph (DAG), they do common operations on it (e.g. pruning non-reachable nodes) and both identify their objects by some unique hash. This realization lead me to try bridging these two technologies. The result of this exploration is Gachix, a binary cache for Nix which uses Git in the backend. 
+
+But why use Git in the first place? Git is far more than only a version control tool. Using its internal tools we can quickly build applications which depend on manipulating DAGs. Using Git in the backend gives the benefit that we don't have to implement a battle-tested framework. On top of that, we get efficient storage and a working replication protocol.
+
+With the usage of Git I was able to reduce the storage size by 82% compared to other binary caches. Since Gachix stores Nix packages in a Git database, It is not reliant on the Nix store. This means that it can be deployed on machines without Nix installed. It is also decentralized: It is able to efficiently replicate packages between Gachix peers and Nix daemons. Additionally, Gachix achieves the lowest median package retrieval latency compared to other Nix caches.
+
+In this post I will introduce the design of Gachix. To best understand how Gachix works, I recommend reading my [last blog post](/posts/git-as-a-fancy-dag). There I introduce how Git works internally and explain how we can build tools with it (by demonstratating how a decentralized peer-to-peer chat application could be built using Git).
+
+
