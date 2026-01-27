@@ -11,6 +11,11 @@ But why use Git in the first place? Git is far more than only a version control 
 
 With the usage of Git I was able to reduce the storage size by 82% compared to other binary caches. Since Gachix stores Nix packages in a Git database, It is not reliant on the Nix store. This means that it can be deployed on machines without Nix installed. It is also decentralized: It is able to efficiently replicate packages between Gachix peers and Nix daemons. Additionally, Gachix achieves the lowest median package retrieval latency compared to other Nix caches.
 
-In this post I will introduce the design of Gachix. To best understand how Gachix works, I recommend reading my [last blog post](/posts/git-as-a-fancy-dag). There I introduce how Git works internally and explain how we can build tools with it (by demonstratating how a decentralized peer-to-peer chat application could be built using Git).
+In this post I will introduce the design of Gachix. To best understand how it works, I recommend reading my [last blog post](/posts/git-as-a-fancy-dag). There I introduce how Git works internally and explain how we can build tools with it (by demonstratating how a decentralized peer-to-peer chat application could be built using Git).
+
+
+## Gachix Design
+
+A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages which are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations and other sources. Files are not compressed and there are often a lot of duplicate files inside the directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g. to run executables). But a binary cache usually does not run the packages it serves. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
 
 
