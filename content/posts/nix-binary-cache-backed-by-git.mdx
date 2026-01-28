@@ -106,3 +106,9 @@ I was curious to see whether there is a notable difference in storage size compa
 It turns out that the sum of the package sizes in the Nix store is 77.84 GB and the size of the `.git` repository is only 13.45 GB. This is a size reduction of 82.72%!
 
 Reasons for this size reduction are the fact that Git compresses its objects with zlib and that a lot of deduplication happens in the Git database. To verify this, I computed the indegree using [this tool](https://github.com/EphraimSiegfried/gitics) for each Git object. I found that 21.84% of objects had an indegree > 1, with some having an indegree up to 238. 
+
+## Conclusion
+
+Gachix demonstrates a practical path toward decentralized Nix binary caches. By piggybacking on Git’s battle-tested object model, we get efficient storage and a robust sync protocol for free. The data shows that while Gachix is fast for the median package, it struggles with large blobs.
+
+The next steps for Gachix involve smoothing out these latency outliers and improving the replication protocol. If you are interested in Git internals or decentralized package management, check out the [Gachix repository](https://github.com/EphraimSiegfried/gachix) and let me know what you think.
