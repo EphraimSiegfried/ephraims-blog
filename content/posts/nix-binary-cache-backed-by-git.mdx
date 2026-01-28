@@ -5,7 +5,7 @@ date: 2026-01-27
 author: Ephraim Siegfried
 ---
 
-Nix and Git have some interesting commonalities. Most notably, both tools operate on a directed acyclic graph (DAG); they do common operations on it (e.g., pruning non-reachable nodes), and both identify their objects by some unique hash. This realization led me to try bridging these two technologies. The result of this exploration is [Gachix](https://github.com/EphraimSiegfried/gachix), a binary cache for Nix that uses Git in the backend. 
+Nix and Git have some interesting commonalities. Most notably, both tools operate on a directed acyclic graph (DAG); they do common operations on it (e.g., pruning non-reachable nodes), and both identify their objects by some unique hash. This realization led me to bridge these two technologies. The result of this exploration is [Gachix](https://github.com/EphraimSiegfried/gachix), a binary cache for Nix that uses Git in the backend. 
 
 But why use Git in the first place? Git is far more than only a version control tool. Using its internal tools we can quickly build applications which depend on manipulating DAGs. Using Git in the backend gives the benefit that we don't have to implement a battle-tested framework. On top of that, we get efficient storage and a working replication protocol.
 
@@ -45,7 +45,7 @@ The main idea is to create a commit object for each package and to let the tree 
 
 ![Commit objects pointing to package](/figures/gachix-git-model-no-references.webp)
 
-As a decentralized service, we'll want to replicate packages across repositories (more details later). For seamless replication, we need to ensure that every package is globally associated with exactly one commit hash regardless of when and where it was created. We can ensure this by setting the commit message, the timestamp, and the author field to constant values. We now have a unique commit object associated with every package.
+As a decentralized service, we'll want to replicate packages across repositories (more details later). For seamless replication, we need to ensure that every package is globally associated with exactly one commit hash regardless of when and where it was created. We can ensure this by setting the commit message, the timestamp, and the author field to constant values to ensure deterministic hashing. We now have a unique commit object associated with every package.
 
 Since we serve Nix packages, we need to know which Nix hash corresponds to which commit object. In Gachix this is solved using Git references. For each package, we also add a reference `/refs/<nix-hash>/pkg` which points to the corresponding commit object.
 
@@ -56,7 +56,7 @@ To get the dependency closure of a package, we can follow all commit objects rea
 
 ### Binary Cache Protocol
 
-Nix users can specify binary caches (or "substituters," as Nix calls them) to speed up package builds. But how does this dubious cache protocol work? [This post](https://fzakaria.com/2021/08/12/a-nix-binary-cache-specification.html) is a great introduction. Here is the short version: When a Nix user runs `nix build nixpkgs#gimp` (or another build command), Nix computes the Nix hash for `nixpkgs#gimp` and then "asks" the known binary caches whether they have the package (the default one is at cache.nixos.org). The "asking" is done by requesting metadata about the file, which is called _narinfo_. The _narinfo_ is a key-value structured file and contains a key called "URL". With the value of this key, the user can then fetch the package contents. The package is served in the [Nix Archive (NAR)](https://nix.dev/manual/nix/2.22/protocols/nix-archive.html#nix-archive-nar-format) format.
+Nix users can specify binary caches (or "substituters," as Nix calls them) to speed up package builds. But how does this opaque cache protocol work? [This post](https://fzakaria.com/2021/08/12/a-nix-binary-cache-specification.html) is a great introduction. Here is the short version: When a Nix user runs `nix build nixpkgs#gimp` (or another build command), Nix computes the Nix hash for `nixpkgs#gimp` and then "asks" the known binary caches whether they have the package (the default one is at cache.nixos.org). The "asking" is done by requesting metadata about the file, which is called _narinfo_. The _narinfo_ is a key-value structured file and contains a key called "URL". With the value of this key, the user can then fetch the package contents. The package is served in the [Nix Archive (NAR)](https://nix.dev/manual/nix/2.22/protocols/nix-archive.html#nix-archive-nar-format) format.
 
 <img src="/figures/nix-binary-cache-protocol.webp" alt="Nix cache protocol" width="300"/>
 
@@ -95,7 +95,7 @@ For testing the latency of packages, I ran `nix build` for a random selection of
 | nix-serve | 42.063 | 101.205 | 447.337 | 2749.474 | 57.757 | 107.114 |
 | nix-serve-ng | 7.689 | 105.879 | 616.550 | 4832.431 | 37.989 | 182.101 |
 
-We can see that Gachix takes the win for the lowest median latency, but it has the second worst average latency. Gachix usually performs well but has some extreme outliers in which it performs badly, as we can see in the variance and max values. In which cases does it perform badly? The following scatter plot illustrates the relationship between package size and latency, with each individual measurement represented as a single point. We can see that Gachix is slower when serving large files but indicates good performance for small to medium-sized files.
+We can see that Gachix takes the win for the lowest median latency, but it has the second worst average latency. Gachix generally performs well but suffers from extreme outliers, as we can see in the variance and max values. In which cases does it perform badly? The following scatter plot illustrates the relationship between package size and latency, with each individual measurement represented as a single point. We can see that Gachix is slower when serving large files but indicates good performance for small to medium-sized files.
 
 ![Size vs Latency Scatterplot](/figures/gachix-size-vs-latency.png)
 
