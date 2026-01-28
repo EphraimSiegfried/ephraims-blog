@@ -16,9 +16,26 @@ In this post I will introduce the design of Gachix. To best understand how it wo
 
 ## Gachix Design
 
-A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages which are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations and other sources. Files are not compressed and there are often a lot of duplicate files inside the directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g. to run executables). But a binary cache usually does not run the packages it serves. It doesn't need the same storage structure. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
+A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages which are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations and other sources. Files are not compressed and there are often a lot of duplicate files inside this directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g. to run executables). But a binary cache usually does not run the packages it serves. Therefore, It doesn't need the same storage structure. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
 
-We can store Nix packages in a Git database by storing files as blobs and directories as trees. Let's say we want to store packages in the following Nix store in a Git database: 
 
-![Example Nix Store](/figures/nix-filesystem.drawio.svg)
+### Package Storage
+
+We can store Nix packages in a Git database by mapping files to blobs and directories to trees. Let's look at an example. Let's say we want to store packages in the following Nix store in a Git database: 
+
+<img src="/figures/nix-filesystem.webp" alt="Example Nix Store" width="220"/>
+
+This simplified store contains the package _foo_, which is dependent on packages _libfoo_ and _bar_. Note that an entry in the nix store is identified by `/nix/store/<nix-hash>-<name>-<version>` where `<nix-hash>` is either a [input-addressed or a content-addressed](https://book.divnix.com/ch04-00-derivations.html) hash.
+
+We can transform _foo_ into the following Git objects:
+
+![Git representation of foo](/figures/gachix-git-model-tree-ps66.webp)
+
+All objects are identified by the content-addressed Git hash (i.e. SHA1 hash of the file content in a Git specific encoding). The `bin` directory is mapped to the tree `ska92`, which points to the `foo` blob containing the contents of the executable. Respectively, the directory `man` is mapped to the `9183d` tree. 
+
+Notice that both `foo` and `libfoo` contain a `man` directory. Let's assume that they both contain a `fooman` file with the exact same content. Since Git addresses all its objects by their content, the `man` directory will be stored only once! The `9183d` tree represents the `man` directory and both `ps66s` and `8pop2` point to it, which represent the top-level directories of _foo_ and _libfoo_. This deduplication reduces the size significantly as we'll see later.
+
+![Git representation of foo](/figures/gachix-git-model-deduplication.webp)
+
+{/* ### Dependency Management */}
 
