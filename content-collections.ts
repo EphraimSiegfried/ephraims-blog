@@ -1,6 +1,7 @@
 import { defineCollection, defineConfig } from "@content-collections/core";
 import { compileMDX } from "@content-collections/mdx";
 import { z } from "zod";
+import remarkGfm from "remark-gfm";
 
 // for more information on configuration, visit:
 // https://www.content-collections.dev/docs/configuration
@@ -18,6 +19,7 @@ const posts = defineCollection({
   }),
   transform: async (document, context) => {
     const mdx = await compileMDX(context, document, {
+      remarkPlugins: [remarkGfm],
       rehypePlugins: [
         [
           rehypePrettyCode,
