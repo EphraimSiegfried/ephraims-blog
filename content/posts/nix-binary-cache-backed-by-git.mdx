@@ -16,6 +16,9 @@ In this post I will introduce the design of Gachix. To best understand how it wo
 
 ## Gachix Design
 
-A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages which are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations and other sources. Files are not compressed and there are often a lot of duplicate files inside the directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g. to run executables). But a binary cache usually does not run the packages it serves. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
+A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages which are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations and other sources. Files are not compressed and there are often a lot of duplicate files inside the directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g. to run executables). But a binary cache usually does not run the packages it serves. It doesn't need the same storage structure. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
 
+We can store Nix packages in a Git database by storing files as blobs and directories as trees. Let's say we want to store packages in the following Nix store in a Git database: 
+
+![Example Nix Store](/figures/nix-filesystem.drawio.svg)
 
