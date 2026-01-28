@@ -41,7 +41,7 @@ const PostPage = async ({ params }: Props) => {
         </div>
       </header>
 
-      <div className="prose prose-slate lg:prose-lg max-w-none prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-500">
+      <div className="prose prose-slate lg:prose-lg max-w-none prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-500 prose-img:mx-auto">
         <MDXContent code={post.mdx} />
       </div>
 
