@@ -5,18 +5,18 @@ date: 2026-01-27
 author: Ephraim Siegfried
 ---
 
-Nix and Git have some interesting commonalities. Most notably, both tools operate on a directed acyclic graph (DAG), they do common operations on it (e.g. pruning non-reachable nodes) and both identify their objects by some unique hash. This realization lead me to try bridging these two technologies. The result of this exploration is [Gachix](https://github.com/EphraimSiegfried/gachix), a binary cache for Nix which uses Git in the backend. 
+Nix and Git have some interesting commonalities. Most notably, both tools operate on a directed acyclic graph (DAG); they do common operations on it (e.g., pruning non-reachable nodes), and both identify their objects by some unique hash. This realization led me to try bridging these two technologies. The result of this exploration is [Gachix](https://github.com/EphraimSiegfried/gachix), a binary cache for Nix that uses Git in the backend. 
 
 But why use Git in the first place? Git is far more than only a version control tool. Using its internal tools we can quickly build applications which depend on manipulating DAGs. Using Git in the backend gives the benefit that we don't have to implement a battle-tested framework. On top of that, we get efficient storage and a working replication protocol.
 
-With the usage of Git I was able to reduce the storage size by 82% compared to other binary caches. Since Gachix stores Nix packages in a Git database, It is not reliant on the Nix store. This means that it can be deployed on machines without Nix installed. It is also decentralized: It is able to efficiently replicate packages between Gachix peers and Nix daemons. Additionally, Gachix achieves the lowest median package retrieval latency compared to other Nix caches.
+With the usage of Git, I was able to reduce the storage size by 82% compared to other binary caches. Since Gachix stores Nix packages in a Git database, it is not reliant on the Nix store. This means that it can be deployed on machines without Nix installed. It is also decentralized: It is able to efficiently replicate packages between Gachix peers and Nix daemons. Additionally, Gachix achieves the lowest median package retrieval latency compared to other Nix caches.
 
-In this post I will introduce the design of Gachix. To best understand how it works, I recommend reading my [last blog post](/posts/git-as-a-fancy-dag). There I introduce how Git works internally and explain how we can build tools with it (by demonstratating how a decentralized peer-to-peer chat application could be built using Git).
+In this post I will introduce the design of Gachix. To best understand how it works, I recommend reading my [last blog post](/posts/git-as-a-fancy-dag). There I introduce how Git works internally and explain how we can build tools with it (by demonstrating how a decentralized peer-to-peer chat application could be built using Git).
 
 
 ## Gachix Design
 
-A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages which are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations and other sources. Files are not compressed and there are often a lot of duplicate files inside this directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g. to run executables). But a binary cache usually does not run the packages it serves. Therefore, It doesn't need the same storage structure. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
+A binary cache serves pre-built packages to users such that they don't have to do the compiling. In order to serve them, the cache needs to store these packages somewhere. All existing Nix binary caches that I know of serve packages that are located in the Nix store (a directory located at `/nix/store`). This directory contains packages, derivations, and other sources. Files are not compressed, and there are often a lot of duplicate files inside this directory. This uncompressed format is necessary for "regular users" because these files need to be accessed constantly (e.g., to run executables). But a binary cache usually does not run the packages it serves. Therefore, it doesn't need the same storage structure. We can significantly reduce the size for storing packages by compressing packages and avoiding duplicate files. For this we can make use of Git!
 
 
 ### Package Storage
@@ -25,7 +25,7 @@ We can store Nix packages in a Git database by mapping files to blobs and direct
 
 <img src="/figures/nix-filesystem.webp" alt="Example Nix Store" width="220"/>
 
-This simplified store contains the package _foo_, which is dependent on packages _libfoo_ and _bar_. Note that an entry in the nix store is identified by `/nix/store/<nix-hash>-<name>-<version>` where `<nix-hash>` is either a [input-addressed or a content-addressed](https://book.divnix.com/ch04-00-derivations.html) hash.
+This simplified store contains the package _foo_, which is dependent on packages _libfoo_ and _bar_. Note that an entry in the Nix store is identified by `/nix/store/<nix-hash>-<name>-<version>` where `<nix-hash>` is either an [input-addressed or a content-addressed](https://book.divnix.com/ch04-00-derivations.html) hash.
 
 We can transform _foo_ into the following Git objects:
 
@@ -33,7 +33,7 @@ We can transform _foo_ into the following Git objects:
 
 All objects are identified by the content-addressed Git hash (i.e. SHA1 hash of the file content in a Git specific encoding). The `bin` directory is mapped to the tree `ska92`, which points to the `foo` blob containing the contents of the executable. Respectively, the directory `man` is mapped to the `9183d` tree. 
 
-Notice that both `foo` and `libfoo` contain a `man` directory. Let's assume that they both contain a `fooman` file with the exact same content. Since Git addresses all its objects by their content, the `man` directory will be stored only once! The `9183d` tree represents the `man` directory and both `ps66s` and `8pop2` point to it, which represent the top-level directories of _foo_ and _libfoo_. This deduplication reduces the size significantly as we'll see later.
+Notice that both `foo` and `libfoo` contain a `man` directory. Let's assume that they both contain a `fooman` file with the exact same content. Since Git addresses all its objects by their content, the `man` directory will be stored only once! The `9183d` tree represents the `man` directory, and both `ps66s` and `8pop2` point to it, which represent the top-level directories of _foo_ and _libfoo_. This deduplication reduces the size significantly, as we'll see later.
 
 ![Git representation of foo](/figures/gachix-git-model-deduplication.webp)
 
@@ -45,9 +45,9 @@ The main idea is to create a commit object for each package and to let the tree 
 
 ![Commit objects pointing to package](/figures/gachix-git-model-no-references.webp)
 
-As a decentralized service, we'll want to replicate packages across repositories (more details later). For seamless replication, we need to ensure that every package is globally associated with exactly one commit hash regardless of when and where it was created. We can ensure this by setting the commit message, the timestamp and the author field to constant values. We now have a unique commit object associated with every package.
+As a decentralized service, we'll want to replicate packages across repositories (more details later). For seamless replication, we need to ensure that every package is globally associated with exactly one commit hash regardless of when and where it was created. We can ensure this by setting the commit message, the timestamp, and the author field to constant values. We now have a unique commit object associated with every package.
 
-Since we serve Nix packages, we need to know which Nix hash corresponds to which commit object. In Gachix this is solved using Git references. For each package we also add a reference `/refs/<nix-hash>/pkg` which points to the corresponding commit object.
+Since we serve Nix packages, we need to know which Nix hash corresponds to which commit object. In Gachix this is solved using Git references. For each package, we also add a reference `/refs/<nix-hash>/pkg` which points to the corresponding commit object.
 
 ![Gachix Git Model](/figures/gachix-git-model.webp)
 
@@ -56,11 +56,11 @@ To get the dependency closure of a package, we can follow all commit objects rea
 
 ### Binary Cache Protocol
 
-Nix users can specify binary caches (or "substituers", as Nix calls them) to speed up package builds. But how does this dubious cache protocol work? [This post](https://fzakaria.com/2021/08/12/a-nix-binary-cache-specification.html) is a great introduction. Here is the short version: When a Nix user runs `nix build nixpkgs#gimp` (or another build command) Nix computes the Nix hash for `nixpkgs#gimp` and then "asks" the known binary caches whether they have the package (the default one is at cache.nixos.org). The "asking" is done by requesting metadata about the file, which is called _narinfo_. The _narinfo_ is a key-value structured file and contains a key called "URL". With the value of this key the user can then fetch the package contents. The package is served in the [Nix Archive (NAR)](https://nix.dev/manual/nix/2.22/protocols/nix-archive.html#nix-archive-nar-format) format.
+Nix users can specify binary caches (or "substituters," as Nix calls them) to speed up package builds. But how does this dubious cache protocol work? [This post](https://fzakaria.com/2021/08/12/a-nix-binary-cache-specification.html) is a great introduction. Here is the short version: When a Nix user runs `nix build nixpkgs#gimp` (or another build command), Nix computes the Nix hash for `nixpkgs#gimp` and then "asks" the known binary caches whether they have the package (the default one is at cache.nixos.org). The "asking" is done by requesting metadata about the file, which is called _narinfo_. The _narinfo_ is a key-value structured file and contains a key called "URL". With the value of this key, the user can then fetch the package contents. The package is served in the [Nix Archive (NAR)](https://nix.dev/manual/nix/2.22/protocols/nix-archive.html#nix-archive-nar-format) format.
 
 <img src="/figures/nix-binary-cache-protocol.webp" alt="Nix cache protocol" width="300"/>
 
-Now how does Gachix handle these requests? Since the protocol requires serving the _narinfo_ for each package, Gachix stores them in the Git database. For each package a _narinfo_ blob exists with a reference containing the Nix hash pointing to it. So now, when a user requests the package _libfoo_ with the corresponding Nix hash, Gachix looks up that hash in the references and returns the pointee to the user. Since we can insert an arbitrary value inside the URL field of the _narinfo_, we can put the tree hash of the corresponding package inside it. This way, we can quickly lookup the package contents and stream the NAR to the user.
+Now how does Gachix handle these requests? Since the protocol requires serving the _narinfo_ for each package, Gachix stores them in the Git database. For each package a _narinfo_ blob exists with a reference containing the Nix hash pointing to it. So now, when a user requests the package _libfoo_ with the corresponding Nix hash, Gachix looks up that hash in the references and returns the pointee to the user. Since we can insert an arbitrary value inside the URL field of the _narinfo_, we can put the tree hash of the corresponding package inside it. This way, we can quickly look up the package contents and stream the NAR to the user.
 
 
 <img src="/figures/gachix-binary-cache-protocol.webp" alt="Gachix Nix cache protocol" width="700"/>
@@ -68,11 +68,11 @@ Now how does Gachix handle these requests? Since the protocol requires serving t
 
 ### Replication
 
-The cool thing about having implemented this cache using Git is that we get a well-tested replication protocol for free. This allows having a decentralized setup where multiple caches share packages with each other. To fetch a package from another replica, we can simply run `git fetch remote_peer /refs/<nix-hash>/pkg:/refs/<nix-hash>/pkg`. This command copies the reference `/refs/<nix-hash>/pkg` and fetches all objects from the remote peer which are reachable from it. (There are some quirks to it, which is explained in my [bachelor thesis](https://cn.dmi.unibas.ch/fileadmin/user_upload/redesign-cn-dmi/pubs/theses/bachelor/Siegfried-Gachix-Nix-Bin-Cache-Over-Git.pdf)).
+The cool thing about having implemented this cache using Git is that we get a well-tested replication protocol for free. This allows having a decentralized setup where multiple caches share packages with each other. To fetch a package from another replica, we can simply run `git fetch remote_peer /refs/<nix-hash>/pkg:/refs/<nix-hash>/pkg`. This command copies the reference `/refs/<nix-hash>/pkg` and fetches all objects from the remote peer that are reachable from it. (There are some quirks to it, which are explained in my [bachelor thesis](https://cn.dmi.unibas.ch/fileadmin/user_upload/redesign-cn-dmi/pubs/theses/bachelor/Siegfried-Gachix-Nix-Bin-Cache-Over-Git.pdf)).
 
-But how are packages added to this network of Gachix peers? Gachix peers can also communicate with remote or local Nix daemons. The Nix daemon is a service which runs Nix specific operations on behalf of non-root users. It allows Gachix to use the Nix API. We can fetch Nix archives using this API. We convert these NARs to Git objects, construct the commit objects and place the necessary references as specified above. Given the dependency graph of a package, we can construct the Git objects by exploring the graph in a depth-first-search manner.
+But how are packages added to this network of Gachix peers? Gachix peers can also communicate with remote or local Nix daemons. The Nix daemon is a service that runs Nix-specific operations on behalf of non-root users. It allows Gachix to use the Nix API. We can fetch Nix archives using this API. We convert these NARs to Git objects, construct the commit objects, and place the necessary references as specified above. Given the dependency graph of a package, we can construct the Git objects by exploring the graph in a depth-first-search manner.
 
-As of now, Gachix doesn't have a clear policy on when packages are added to the cache. The cache admin needs run a command to add a package. There is a hardcoded order on when which peer or daemon is contacted. This can definitely be enhanced by designing a peer-selection heuristic which minimizes the latency of package addition.
+As of now, Gachix doesn't have a clear policy on when packages are added to the cache. The cache admin needs to run a command to add a package. There is a hardcoded order on when each peer or daemon is contacted. This can definitely be enhanced by designing a peer-selection heuristic that minimizes the latency of package addition.
 
 ## Results
 
@@ -84,9 +84,9 @@ I tested Gachix and compared it to [nix-serve](https://github.com/edolstra/nix-s
 - Gachix is **transparent**: It can be used with the Nix interface.
 
 
-### NAR retrieval Latency
+### NAR Retrieval Latency
 
-For testing the latency of packages I ran `nix build` for a random selection of 650 packages from two different branches of Nixpkgs. This resulted in a total 5123 of packages added to the Nix store. I then added these packages to Gachix. Subsequently, I started all cache services. Finally, for each package and for each service the end-to-end latency (request send to full response received) was measured.
+For testing the latency of packages, I ran `nix build` for a random selection of 650 packages from two different branches of Nixpkgs. This resulted in a total of 5123 packages added to the Nix store. I then added these packages to Gachix. Subsequently, I started all cache services. Finally, for each package and for each service, the end-to-end latency (request sent to full response received) was measured.
 
 | Cache Service | Median | p95 | p99 | Max | Mean | Std |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -95,7 +95,7 @@ For testing the latency of packages I ran `nix build` for a random selection of 
 | nix-serve | 42.063 | 101.205 | 447.337 | 2749.474 | 57.757 | 107.114 |
 | nix-serve-ng | 7.689 | 105.879 | 616.550 | 4832.431 | 37.989 | 182.101 |
 
-We can see that Gachix takes the win for the lowest median latency, but it has the second worst average latency. Gachix usually performs well but has a some extreme outliers in which it performs badly as we can see in the variance and max values. In which cases does it perform badly? The following scatter plot illustrates the relationship between package size and latency, with each individual measurement represented as a single point. We can see that Gachix is slower when serving large files but indicates good performance for small to medium sized files.
+We can see that Gachix takes the win for the lowest median latency, but it has the second worst average latency. Gachix usually performs well but has some extreme outliers in which it performs badly, as we can see in the variance and max values. In which cases does it perform badly? The following scatter plot illustrates the relationship between package size and latency, with each individual measurement represented as a single point. We can see that Gachix is slower when serving large files but indicates good performance for small to medium-sized files.
 
 ![Size vs Latency Scatterplot](/figures/gachix-size-vs-latency.png)
 
@@ -105,5 +105,4 @@ I was curious to see whether there is a notable difference in storage size compa
 
 It turns out that the sum of the package sizes in the Nix store is 77.84 GB and the size of the `.git` repository is only 13.45 GB. This is a size reduction of 82.72%!
 
-Reasons for this size reduction are the fact that Git compresses its objects with zlib and that a lot of deduplication happens in the Git database. To verify this, I computed the indegree using [this tool](https://github.com/EphraimSiegfried/gitics) for each Git object. I found that 21.84% of objects had an indegree > 1 with some having an indegree up to 238. 
-
+Reasons for this size reduction are the fact that Git compresses its objects with zlib and that a lot of deduplication happens in the Git database. To verify this, I computed the indegree using [this tool](https://github.com/EphraimSiegfried/gitics) for each Git object. I found that 21.84% of objects had an indegree > 1, with some having an indegree up to 238. 
