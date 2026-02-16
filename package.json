@@ -20,7 +20,7 @@
   "devDependencies": {
     "@content-collections/core": "^0.13.1",
     "@content-collections/mdx": "^0.2.2",
-    "@content-collections/next": "^0.2.10",
+    "@content-collections/next": "^0.2.11",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^25",
