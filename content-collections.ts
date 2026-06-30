@@ -16,6 +16,7 @@ const posts = defineCollection({
     summary: z.string(),
     date: z.coerce.date(),
     author: z.string(),
+    content: z.string(),
   }),
   transform: async (document, context) => {
     const mdx = await compileMDX(context, document, {
@@ -66,5 +67,5 @@ const links = defineCollection({
 });
 
 export default defineConfig({
-  collections: [profile, posts, links],
+  content: [profile, posts, links],
 });
